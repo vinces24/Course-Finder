@@ -7,7 +7,8 @@ import validators
 
 url = "https://catalog.ufl.edu/UGRD/courses/electrical_and_computer_engineering/"
 major = "EE"
-app = Flask(__name__, static_folder='/home/runner/IA/static')
+app = Flask(__name__, static_folder='static')
+
 
 def runURL(url, major):
     courses.clear()
@@ -15,19 +16,21 @@ def runURL(url, major):
     prerecs.clear()
     corecs.clear()
     response = requests.get(url)
-    with open(f"/home/runner/IA/UF_{major}_Catalog.html", "w") as file:
+    with open(f"UF_{major}_Catalog.html", "w") as file:
         file.write(response.text)
         file.close()
     getLists(courses, descriptions, prerecs, corecs, major)
+
 
 def find_course_names(text):
     pattern = r"[A-Z]{2,4}\s\d{4}[A-Z]?"
     course_names = re.findall(pattern, text)
     return course_names
 
+
 def getLists(courses, descriptions, prerecs, corecs, major):
     num = 0
-    with open(f"/home/runner/IA/UF_{major}_Catalog.html") as file:
+    with open(f"UF_{major}_Catalog.html") as file:
         soup = BeautifulSoup(file, 'html.parser')
         num_courses = soup.find_all('div', class_='courseblock courseblocktoggle')
         for i in range(len(num_courses)):
@@ -55,7 +58,7 @@ def getLists(courses, descriptions, prerecs, corecs, major):
             info += nameTitle + credit + "<br>" + description.text.strip() + "<br>"
             courses[num] = title
             for extr in course.find_all(class_='courseblockextra'):
-                word = ''.join( [l for l in extr.text.strip().split()[0] if l.isalpha()]).lower()
+                word = ''.join([l for l in extr.text.strip().split()[0] if l.isalpha()]).lower()
                 if word in "gradingscheme":
                     info += " ".join(extr.text.strip().split()[0:]) + "<br>"
                     descriptions[num] = info
@@ -75,6 +78,7 @@ def getLists(courses, descriptions, prerecs, corecs, major):
             num += 1
     file.close()
 
+
 def toPrint(c):
     n = courses.index(c) if c in courses else -1
     if n < 0:
@@ -86,16 +90,19 @@ def toPrint(c):
         text += "Corequisites: " + "<br>" + ', '.join([i for i in corecs[n]]) + "<br>"
     return text
 
+
 courses = []
 descriptions = []
 prerecs = {}
 corecs = {}
 runURL(url, major)
 
+
 @app.route('/')
 @app.route('/home')
 def home():
     return render_template("index.html", courses=courses, major=major)
+
 
 def drawRecs(sub1, sub2, courseitem, current, reclist, colist, drawn_edges=None):
     if courseitem not in current:
@@ -112,20 +119,22 @@ def drawRecs(sub1, sub2, courseitem, current, reclist, colist, drawn_edges=None)
                     sub1.edge(*edge, dir='both', minlen='3.0')
                     drawn_edges.add(edge)
             drawRecs(sub1, sub2, c, current, reclist, colist, drawn_edges)
-    for r in reclist[rind]:
-        if r != courseitem:
-            sub2.node(str(r), str(r))
-            edge = (str(r), str(courseitem))
-            if edge not in drawn_edges:
-                sub2.edge(*edge)
-                drawn_edges.add(edge)
-        drawRecs(sub1, sub2, r, current, reclist, colist, drawn_edges)
+        for r in reclist[rind]:
+            if r != courseitem:
+                sub2.node(str(r), str(r))
+                edge = (str(r), str(courseitem))
+                if edge not in drawn_edges:
+                    sub2.edge(*edge)
+                    drawn_edges.add(edge)
+            drawRecs(sub1, sub2, r, current, reclist, colist, drawn_edges)
+
 
 def getNodes(dot, current):
     with dot.subgraph(name='TOP') as subT, dot.subgraph(name='PRE') as subP:
         subT.attr(rank='same')
         subT.node(str(course_wanted), str(course_wanted), style='bold')
         drawRecs(subT, subP, course_wanted, current, prerecs, corecs)
+
 
 @app.route('/course', methods=['POST'])
 def course():
@@ -140,13 +149,15 @@ def course():
     dot.format = 'jpg'
     global coursefile
     coursefile = f'{course_wanted}_UF_{major}'
-    dot.render(f"/home/runner/IA/static/{coursefile}", view=False, cleanup=True)
-    return render_template("index.html", courses=courses, course_wanted=course_wanted, currents=currents, coursefile=coursefile + ".jpg", showCurrents=toPrint(cur), major=major)
+    dot.render(f"static/{coursefile}", view=False, cleanup=True)
+    return render_template("index.html", courses=courses, course_wanted=course_wanted, currents=currents, coursefile=coursefile + ".jpg", major=major)
+
 
 @app.route('/course/show', methods=['POST'])
 def show_course():
     cur = request.form['currents']
     return render_template("index.html", courses=courses, course_wanted=course_wanted, currents=currents, coursefile=coursefile + ".jpg", showCurrents=toPrint(cur), major=major)
+
 
 @app.route('/geturl', methods=['GET', 'POST'])
 def get_url():
@@ -158,6 +169,7 @@ def get_url():
         return redirect('/')
     else:
         return render_template("index.html")
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', debug=True, port=5001)
