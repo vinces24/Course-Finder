@@ -1,2 +1,2 @@
 Download exactly as presented:
-Blank 'static' folder; index.html in 'templates' folder
+Blank 'static' folder (need to remove 'placeholder' file); index.html in 'templates' folder
